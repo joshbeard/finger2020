@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-finger2020 - A tiny, secure finger daemon for single-user UNIX systems
+finger2020 - A tiny, secure finger daemon for UNIX systems
 
 ## About
 
 This finger service uses files to load contact information, and will not extract
-any sensitive information directly from the host system. So relax! Only one user
-profile is supported (hence, "single-user"). It's intended to be used by a
-sysop to broadcast server news and/or personal contact information over the
-internet.
+any sensitive information directly from the host system. So relax! It's intended
+to be used by a sysop to broadcast server news and/or personal contact
+information over the internet.
 
 ## Operation
 
@@ -62,6 +61,20 @@ FINGER_INFO_LABELS
 
     Set to "true" or "false" to toggle showing the 'Project:' and 'Plan:' labels
     in the response.
+
+Additional profiles can be configured by suffixing an underscore and label to
+the standard environment variables. The suffix should be consistent for all variables for
+a profile configuration. For example, substitute 'FOO' for a unique label:
+
+    FINGER_NAME_FOO
+    FINGER_PROJECT_FOO
+    FINGER_PLAN_FOO
+    FINGER_INFO_LABELS_FOO
+
+A `FINGER_HIDE_FOO` variable is available for additional user profiles to toggle
+displaying them in the user list query, which defaults to *false* (the user
+*will* be displayed). Set this to "true" (case-insensitive) to prevent the user
+profile from displaying in the query list. Any other value will display it.
 """
 import os
 import re
@@ -110,26 +123,60 @@ q2_re = re.compile("({W}{S})?{U}?{H}{C}".format(**tokens))
 
 
 def read_file(filename):
-    try:
-        with open(filename) as fp:
-            # Normalize file line endings to <CR><LF>
-            text = "\r\n".join(line.rstrip() for line in fp.readlines())
-    except OSError:
+    if filename:
+        try:
+            with open(filename) as fp:
+                # Normalize file line endings to <CR><LF>
+                text = "\r\n".join(line.rstrip() for line in fp.readlines())
+        except OSError:
+            text = ""
+    else:
         text = ""
     return text
 
 
-def render_user_info():
-    contact = read_file(FINGER_CONTACT)
-    project = read_file(FINGER_PROJECT)
-    plan = read_file(FINGER_PLAN).strip()
-    if FINGER_INFO_LABELS == "false":
-        return "\r\n".join([contact, project, plan])
+def get_profiles(hidden=True):
+    profiles = {}
+    for var, value in os.environ.items():
+        if var.startswith("FINGER_NAME_"):
+            var_suffix = var.replace('FINGER_NAME_', '')
+            hide = os.environ.get(f'FINGER_HIDE_{var_suffix}', "false")
+
+            # Non-default is a string from env
+            if hide.lower() == "true" and not hidden:
+                continue
+            else:
+                profiles[value] = var_suffix
+        elif var == "FINGER_NAME":
+            # The default profile
+            profiles[value] = None
+        else:
+            continue
+    return profiles
+
+
+def render_user_info(var_suffix):
+    # If no varsuffix is set, use the defaults
+    if var_suffix == None:
+        contact = read_file(FINGER_CONTACT)
+        project = read_file(FINGER_PROJECT)
+        plan = read_file(FINGER_PLAN).strip()
+        labels = FINGER_INFO_LABELS
     else:
+        contact = read_file(os.environ.get(f"FINGER_CONTACT_{var_suffix}", False))
+        project = read_file(os.environ.get(f"FINGER_PROJECT_{var_suffix}", False))
+        plan = read_file(os.environ.get(f"FINGER_PLAN_{var_suffix}", False)).strip()
+        labels = os.environ.get(f"FINGER_INFO_LABELS_{var_suffix}", "true")
+
+    # Not actually a boolean since we read it from the environment
+    if labels.lower() == "true":
         return "\r\n".join([contact, f"Project:", project, "", f"Plan: {plan}"])
+    else:
+        return "\r\n".join([contact, project, plan])
 
 
 def handle(query):
+    profiles = get_profiles()
     # We don't need no stinkin' := walrus operator!
     match = q2_re.fullmatch(query)
     if match:
@@ -137,14 +184,16 @@ def handle(query):
 
     match = q1_search_re.fullmatch(query)
     if match:
-        if match.group("username") == FINGER_NAME:
-            return render_user_info()
+        user = match.group("username")
+        if match.group("username") in profiles:
+            return render_user_info(profiles[user])
         else:
             return "Finger user not found"
 
     match = q1_list_re.fullmatch(query)
     if match:
-        return f"There is only one user on this server: {FINGER_NAME}"
+        users = ', '.join(get_profiles(hidden=False))
+        return f"Users on this server: {users}"
 
     return "Finger invalid query"
 

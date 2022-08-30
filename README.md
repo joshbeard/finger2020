@@ -1,6 +1,6 @@
 # finger2020
 
-*A tiny, secure [finger](https://en.wikipedia.org/wiki/Finger_protocol) daemon for single-user unix systems.*
+*A tiny, secure [finger](https://en.wikipedia.org/wiki/Finger_protocol) daemon for unix systems.*
 
 ![photo](photo.jpg)
 
@@ -9,9 +9,9 @@
 ## About
 
 This finger service uses files to load contact information, and will not extract
-any sensitive information directly from the host system. So relax! Only one user
-profile is supported (hence, "single-user"). It's intended to be used by a sysop
-to broadcast server news and/or personal contact information over the internet.
+any sensitive information directly from the host system. So relax!  It's
+intended to be used by a sysop to broadcast server news and/or personal contact
+information over the internet.
 
 ## Operation
 
@@ -70,6 +70,22 @@ restrictions on what type of information the user can include.
 
 Set to "true" or "false" to toggle showing the 'Project:' and 'Plan:' labels
 in the response.
+
+---
+
+Additional "user" profiles can be configured by suffixing an underscore and
+label to the standard environment variables. The suffix should be consistent for
+all variables for a profile configuration set. For example:
+
+  * `FINGER_NAME_FOO`
+  * `FINGER_PROJECT_FOO`
+  * `FINGER_PLAN_FOO`
+  * `FINGER_INFO_LABELS_FOO`
+
+A `FINGER_HIDE_FOO` variable is available for additional user profiles to toggle
+displaying them in the user list query, which defaults to *false* (the user
+*will* be displayed). Set this to "true" (case-insensitive) to prevent the user
+profile from displaying in the query list. Any other value will display it.
 
 ## Links
 

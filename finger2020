@@ -129,6 +129,7 @@ def read_file(filename):
                 # Normalize file line endings to <CR><LF>
                 text = "\r\n".join(line.rstrip() for line in fp.readlines())
         except OSError:
+            sys.stderr.write(f"Unable to open file: {filename!r}\n")
             text = ""
     else:
         text = ""

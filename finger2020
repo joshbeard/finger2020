@@ -62,6 +62,11 @@ FINGER_INFO_LABELS
     Set to "true" or "false" to toggle showing the 'Project:' and 'Plan:' labels
     in the response.
 
+FINGER_MAIN
+
+    Specifies a path to an optional custom response for a hostname query.
+
+
 Additional profiles can be configured by suffixing an underscore and label to
 the standard environment variables. The suffix should be consistent for all variables for
 a profile configuration. For example, substitute 'FOO' for a unique label:
@@ -96,6 +101,7 @@ FINGER_CONTACT = os.getenv("FINGER_CONTACT", os.path.join(HOME, ".contact"))
 FINGER_PLAN = os.getenv("FINGER_PLAN", os.path.join(HOME, ".plan"))
 FINGER_PROJECT = os.getenv("FINGER_PROJECT", os.path.join(HOME, ".project"))
 FINGER_INFO_LABELS = os.getenv("FINGER_INFO_LABELS", "true")
+FINGER_MAIN = os.getenv("FINGER_MAIN", None)
 
 # Query specification:
 #   {Q1}    ::= [{W}|{W}{S}{U}]{C}
@@ -193,6 +199,9 @@ def handle(query):
 
     match = q1_list_re.fullmatch(query)
     if match:
+        if FINGER_MAIN:
+            return read_file(FINGER_MAIN)
+
         users = ', '.join(get_profiles(hidden=False))
         return f"Users on this server: {users}"
 
